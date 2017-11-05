@@ -47,6 +47,7 @@
 
 
 // TODO -- check all alloc return values for NULL
+// TODO -- add non-continous emission
 
 
 // Needed forward declarations.
@@ -62,6 +63,12 @@ double GetRandomDouble(double min, double max) {
     double range = max - min;
     double n = (double) GetRandomValue(0, RAND_MAX) / (double) RAND_MAX;
     return n*range + min;
+}
+
+// NormalizeV2 normalizes a 2d Vector and returns its unit vector.
+Vector2 NormalizeV2(Vector2 v) {
+    double len = sqrt(v.x*v.x + v.y*v.y);
+    return (Vector2) {.x = v.x/len, .y = v.y/len};
 }
 
 // LinearFade fades from Color c1 to Color c2. Fraction is a value between 0 and 1.
@@ -86,17 +93,16 @@ Color LinearFade(Color c1, Color c2, double fraction) {
 // EmitterConfig type.
 //----------------------------------------------------------------------------------
 typedef struct EmitterConfig {
-    size_t max_particles;       // Maximum amounts of particles in the system.
-    size_t emissionRate;           // Amount of particles emitted each second.
+    size_t maxParticles;       // Maximum amounts of particles in the system.
+    size_t emissionRate;        // Amount of particles emitted each second.
     Vector2 origin;             // Origin is the point, where the particles are emitted from.
     Vector2 emissionMin;        // Defines the minimum emission x,y.
     Vector2 emissionMax;        // Defines the maximum emission x,y.
     Vector2 acceleration;       // Constant acceleration. e.g. gravity.
-    Color startColor;
-    Color endColor;
+    Color startColor;           // The color the particle starts with when it spawns.
+    Color endColor;             // The color the particle ends with when it disappears.
     double ageMin;              // Minimum age of a particle in seconds.
     double ageMax;              // Maximum age of a particle in seconds.
-    bool autoRefresh;           // This decides if particles are auto refreshed after their lifetime.
     Texture2D texture;          // The texture used as particle texture.
 
     bool (*particle_Deactivator)(struct Particle *); // Pointer to a function that determines when
@@ -128,7 +134,7 @@ bool Particle_DeactivatorAge(Particle *p) {
 
 // Particle_new creates a new Particle object.
 // The deactivator function may be omitted by passing NULL.
-Particle * Particle_New(bool (*deactivatorFun)(struct Particle *)) {
+Particle * Particle_New(bool (*deactivatorFunc)(struct Particle *)) {
     Particle *p = calloc(1, sizeof(Particle));
     *p = (Particle){
         .position = (Vector2){.x = 0, .y = 0},
@@ -140,8 +146,8 @@ Particle * Particle_New(bool (*deactivatorFun)(struct Particle *)) {
 
         .particle_Deactivator = Particle_DeactivatorAge
     };
-    if(deactivatorFun != NULL) {
-        p->particle_Deactivator = deactivatorFun;
+    if(deactivatorFunc != NULL) {
+        p->particle_Deactivator = deactivatorFunc;
     }
 
     return p;
@@ -170,11 +176,13 @@ void Particle_Update(Particle *p, double dt) {
     if(!p->active) {
         return;
     }
+
+    p->age += dt;
+
     if(p->particle_Deactivator(p)) {
         p->active = false;
         return;
-    }
-    p->age += dt;
+    }    
 
     // Update velocity by acceleration.
     p->velocity.x += p->acceleration.x*dt;
@@ -193,8 +201,7 @@ void Particle_Update(Particle *p, double dt) {
 typedef struct Emitter {    
     EmitterConfig config;
     double mustEmit;            // Amount of particles to be emitted within next update call.
-    int xOffset;                // xOffset is half the width of the texture.
-    int yOffset;                // yOffset is half the height of the texture.
+    Vector2 offset;             // Offset holds half the width and height of the texture.
     bool isEmitting;
     Particle **particles;       // Array of all particles (by pointer).
 } Emitter;
@@ -203,12 +210,12 @@ typedef struct Emitter {
 Emitter * Emitter_New(EmitterConfig cfg) {
     Emitter *e = calloc(1, sizeof(Emitter));
     e->config = cfg;
-    e->xOffset = e->config.texture.width/2;
-    e->yOffset = e->config.texture.height/2;
-    e->particles = calloc(e->config.max_particles, sizeof(Particle));
+    e->offset.x = e->config.texture.width/2;
+    e->offset.y = e->config.texture.height/2;
+    e->particles = calloc(e->config.maxParticles, sizeof(Particle));
     e->mustEmit = 0;
 
-    for(size_t i = 0; i < e->config.max_particles; i++) {
+    for(size_t i = 0; i < e->config.maxParticles; i++) {
         e->particles[i] = Particle_New(e->config.particle_Deactivator);
     }
 
@@ -229,6 +236,26 @@ void Emitter_Free(Emitter *e) {
     free(e);
 }
 
+// Emitter_Burst emits a specified amount of particles at once,
+// ignoring the state of e->isEmitting. Use this for singular events
+// instead of continuous output.
+void Emitter_Burst(Emitter *e, size_t amount) {
+    Particle *p = NULL;
+    size_t emitted = 0;
+
+    for(size_t i = 0; i < e->config.maxParticles; i++) {
+        p = e->particles[i];
+        if(!p->active) {
+            Particle_Init(p, &e->config);
+            p->position = e->config.origin;
+            emitted++;
+        }
+        if(emitted >= amount) {
+            return;
+        }
+    }
+}
+
 // Emitter_Update updates all particles and returns
 // the current amount of active particles.
 u_int32_t Emitter_Update(Emitter *e, double dt) {
@@ -241,7 +268,7 @@ u_int32_t Emitter_Update(Emitter *e, double dt) {
         emitNow = (size_t)e->mustEmit; // floor
     }
 
-    for(size_t i = 0; i < e->config.max_particles; i++) {
+    for(size_t i = 0; i < e->config.maxParticles; i++) {
         p = e->particles[i];
         if(p->active) {
             Particle_Update(p, dt);
@@ -263,12 +290,12 @@ u_int32_t Emitter_Update(Emitter *e, double dt) {
 // Emitter_Draw draws all active particles.
 void Emitter_Draw(Emitter *e, BlendMode bm) {
     BeginBlendMode(bm);
-    for(size_t i = 0; i < e->config.max_particles; i++) {
+    for(size_t i = 0; i < e->config.maxParticles; i++) {
         Particle *p = e->particles[i];
         if(p->active) {
             DrawTexture(e->config.texture,
-                        e->particles[i]->position.x - e->xOffset,
-                        e->particles[i]->position.y - e->yOffset,
+                        e->particles[i]->position.x - e->offset.x,
+                        e->particles[i]->position.y - e->offset.y,
                         LinearFade(e->config.startColor, e->config.endColor,p->age/p->ttl));
         }
     }
@@ -279,8 +306,10 @@ void Emitter_Draw(Emitter *e, BlendMode bm) {
 // ParticleSystem type.
 //----------------------------------------------------------------------------------
 
-// ParticleSystem is a set of emitters grouped
+// ParticleSystem is a set of emitters grouped logically
 // together to achieve a specific visual effect.
+// While Emitters can be used independently, ParticleSystem
+// offers some convenience for handling many Emitters at once.
 typedef struct ParticleSystem {
     bool active;
     Emitter *emitters;
