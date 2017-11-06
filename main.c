@@ -74,6 +74,10 @@ void Init() {
     Image imgCircle4 = GenImageGradientRadial(4, 4, 0.5, WHITE, BLACK);
     texCircle4 = LoadTextureFromImage(imgCircle4);
 
+    UnloadImage(imgCircle4);
+    UnloadImage(imgCircle8);
+    UnloadImage(imgCircle16);
+
     EmitterConfig ecfg1 = {
         .maxParticles = 2000,
         .emissionRate = rate1,
@@ -81,8 +85,8 @@ void Init() {
         .emissionMin = (Vector2){.x = -70, .y = -720},
         .emissionMax = (Vector2){.x = 70, .y = -750},
         .acceleration = (Vector2){.x = 0, .y = 981},
-        .startColor = (Color){.r = 0, .g = 20, .b = 240, .a = 255},
-        .endColor = (Color){.r = 0, .g = 20, .b = 240, .a = 0},
+        .startColor = (Color){.r = 0, .g = 20, .b = 255, .a = 255},
+        .endColor = (Color){.r = 0, .g = 150, .b = 100, .a = 0},
         .ageMin = 1.0,
         .ageMax = 3.0,
         .texture = texCircle16,
@@ -100,8 +104,8 @@ void Init() {
         .emissionMin = (Vector2){.x = -20, .y = -800},
         .emissionMax = (Vector2){.x = 20, .y = -850},
         .acceleration = (Vector2){.x = 0, .y = 981},
-        .startColor = (Color){.r = 0, .g = 20, .b = 240, .a = 255},
-        .endColor = (Color){.r = 0, .g = 20, .b = 240, .a = 0},
+        .startColor = (Color){.r = 0, .g = 20, .b = 255, .a = 255},
+        .endColor = (Color){.r = 0, .g = 150, .b = 100, .a = 0},
         .ageMin = 1.0,
         .ageMax = 3.0,
         .texture = texCircle8,
@@ -118,8 +122,8 @@ void Init() {
         .emissionMin = (Vector2){.x = -200, .y = -500},
         .emissionMax = (Vector2){.x = 200, .y = -550},
         .acceleration = (Vector2){.x = 0, .y = 981},
-        .startColor = (Color){.r = 0, .g = 20, .b = 240, .a = 255},
-        .endColor = (Color){.r = 0, .g = 20, .b = 240, .a = 0},
+        .startColor = (Color){.r = 0, .g = 20, .b = 255, .a = 255},
+        .endColor = (Color){.r = 0, .g = 150, .b = 100, .a = 0},
         .ageMin = 1.0,
         .ageMax = 3.0,
         .texture = texCircle16,
@@ -168,6 +172,9 @@ void Init() {
     ecfg6.endColor = (Color){.r = 222, .g = 222, .b = 222, .a = 0};
     emitterFire3 = Emitter_New(ecfg6);
     Emitter_Start(emitterFire3);
+
+    ecfg6.maxParticles = 2000;
+    Emitter_Reinit(emitterFire3, ecfg6);
 }
 
 // Destroy and free all the global data.

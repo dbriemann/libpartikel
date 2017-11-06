@@ -8,9 +8,9 @@ project(libpartikel LANGUAGES C)
 
 set (CMAKE_C_STANDARD 99)
 
-SET (CMAKE_C_FLAGS_INIT                "-Wall -std=c99")
-SET (CMAKE_C_FLAGS_DEBUG_INIT          "-g")
-SET (CMAKE_C_FLAGS_RELEASE_INIT        "-O4 -DNDEBUG")
+SET (CMAKE_C_FLAGS_INIT           "-Wall -std=c99")
+SET (CMAKE_C_FLAGS_DEBUG          "-g")
+SET (CMAKE_C_FLAGS_RELEASE        "-O4 -DNDEBUG")
 
 add_executable(${PROJECT_NAME} "main.c")
 target_link_libraries(${PROJECT_NAME} raylib glfw m X11)

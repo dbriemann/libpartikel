@@ -212,7 +212,7 @@ Emitter * Emitter_New(EmitterConfig cfg) {
     e->config = cfg;
     e->offset.x = e->config.texture.width/2;
     e->offset.y = e->config.texture.height/2;
-    e->particles = calloc(e->config.maxParticles, sizeof(Particle));
+    e->particles = calloc(e->config.maxParticles, sizeof(Particle *));
     e->mustEmit = 0;
 
     for(size_t i = 0; i < e->config.maxParticles; i++) {
@@ -222,16 +222,60 @@ Emitter * Emitter_New(EmitterConfig cfg) {
     return e;
 }
 
+// Emitter_Reinit reinits the given Emitter with a new EmitterConfig.
+bool Emitter_Reinit(Emitter *e, EmitterConfig cfg) {
+    if(cfg.maxParticles > e->config.maxParticles) {
+        // Array needs to be grown to the new size.
+        Particle **newParticles = realloc(e->particles, cfg.maxParticles * sizeof(Particle *));
+        if(newParticles == NULL) {
+            return false;
+        }
+        e->particles = newParticles;
+
+        // Create new Particles
+        for(size_t i = e->config.maxParticles; i < cfg.maxParticles; i++) {
+            e->particles[i] = Particle_New(cfg.particle_Deactivator);
+        }
+    } else if(cfg.maxParticles < e->config.maxParticles) {
+        // First we free the now obsolete Particles.
+        for(size_t i = cfg.maxParticles; i < e->config.maxParticles; i++) {
+            Particle_Free(e->particles[i]);
+        }
+
+        // Array needs to be shrunk to the new size.
+        Particle **newParticles = realloc(e->particles, cfg.maxParticles * sizeof(Particle *));
+        if(newParticles == NULL) {
+            return false;
+        }
+        e->particles = newParticles;
+    }
+
+    // Set new config.
+    e->config = cfg;
+
+    // Set new Particle deactivator function for all Particles.
+    for(size_t i = 0; i < e->config.maxParticles; i++) {
+        e->particles[i]->particle_Deactivator = e->config.particle_Deactivator;
+    }
+
+    return true;
+}
+
+// Emitter_Start activates Particle emission.
 void Emitter_Start(Emitter *e) {
     e->isEmitting = true;
 }
 
+// Emitter_Start deactivates Particle emission.
 void Emitter_Stop(Emitter *e) {
     e->isEmitting = false;
 }
 
 // Emitter_Free frees all allocated resources.
 void Emitter_Free(Emitter *e) {
+    for(size_t i = 0; i < e->config.maxParticles; i++) {
+        Particle_Free(e->particles[i]);
+    }
     free(e->particles);
     free(e);
 }
@@ -312,24 +356,40 @@ void Emitter_Draw(Emitter *e, BlendMode bm) {
 // offers some convenience for handling many Emitters at once.
 typedef struct ParticleSystem {
     bool active;
-    Emitter *emitters;
+    size_t length;
+    size_t capacity;
+    Emitter **emitters;
 } ParticleSystem;
 
 // Particlesystem_New creates a new particle system
 // with the given amount of emitters.
-ParticleSystem * ParticleSystem_New(size_t emitters) {
+ParticleSystem * ParticleSystem_New() {
     ParticleSystem *ps = calloc(1, sizeof(ParticleSystem));
     ps->active = false;
-    ps->emitters = calloc(emitters, sizeof(Emitter));
+    ps->length = 0;
+    ps->capacity = 1;
+    ps->emitters = calloc(ps->capacity, sizeof(Emitter*));
     return ps;
 }
 
+// ParticleSystem_Register registers an emitter to the system.
+// The emitter will be controlled by all particle system functions.
+bool ParticleSystem_Register(ParticleSystem *ps, Emitter *emitter) {
+    // If there is no space for another emitter we have to realloc.
+    if(ps->length >= ps->capacity) {
+        // Double capacity.
+        Emitter **newEmitters = realloc(ps->emitters, 2*ps->capacity*sizeof(Emitter *));
+        if(newEmitters == NULL) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+// ParticleSystem_Free only frees its own resources.
+// The emitters referenced here must be freed on their own.
 void ParticleSystem_Free(ParticleSystem *p) {
-    // TODO
-    // run emitter->free
-    //..
-    // free emitter array
-    //..
-    // free particle system
+    free(p->emitters);
     free(p);
 }
