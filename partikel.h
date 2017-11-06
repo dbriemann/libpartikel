@@ -46,8 +46,11 @@
 #include "raylib.h"
 
 
-// TODO -- check all alloc return values for NULL
-// TODO -- add non-continous emission
+/**  TODOs
+ *
+ * 1) Check all alloc return values for NULL.
+ * 2) Add non-continous emission.
+ */
 
 
 // Needed forward declarations.
@@ -374,6 +377,7 @@ ParticleSystem * ParticleSystem_New() {
 
 // ParticleSystem_Register registers an emitter to the system.
 // The emitter will be controlled by all particle system functions.
+// Returns true on success and false otherwise.
 bool ParticleSystem_Register(ParticleSystem *ps, Emitter *emitter) {
     // If there is no space for another emitter we have to realloc.
     if(ps->length >= ps->capacity) {
@@ -382,9 +386,51 @@ bool ParticleSystem_Register(ParticleSystem *ps, Emitter *emitter) {
         if(newEmitters == NULL) {
             return false;
         }
+        ps->emitters = newEmitters;
+        ps->capacity *= 2;
     }
 
+    // Now the new Emitter can be registered.
+    ps->emitters[ps->length] = emitter;
+    ps->length++;
+
     return true;
+}
+
+// ParticleSystem_Deregister deregisters an Emitter by its pointer.
+// Returns true on success and false otherwise.
+bool ParticleSystem_Deregister(ParticleSystem *ps, Emitter *emitter) {
+    for(size_t i = 0; i < ps->length; i++) {
+        if(ps->emitters[i] == emitter) {
+            // Remove this emitter by replacing its pointer with the
+            // last pointer, if it is not the only Emitter.
+            if(i != ps->length-1) {
+                ps->emitters[i] = ps->emitters[ps->length-1];
+            }
+            // Then NULL the last emitter. It is either a duplicate or
+            // the removed one.
+            ps->length--;
+            ps->emitters[ps->length] = NULL;
+
+            return true;
+        }
+    }
+    // Emitter not found.
+    return false;
+}
+
+// ParticleSystem_StartAll runs Emitter_Start on all registered Emitters.
+void ParticleSystem_StartAll(ParticleSystem *ps) {
+    for(size_t i = 0; i < ps->length; i++) {
+        Emitter_Start(ps->emitters[i]);
+    }
+}
+
+// ParticleSystem_StopAll runs Emitter_Stop on all registered Emitters.
+void ParticleSystem_StopAll(ParticleSystem *ps) {
+    for(size_t i = 0; i < ps->length; i++) {
+        Emitter_Stop(ps->emitters[i]);
+    }
 }
 
 // ParticleSystem_Free only frees its own resources.
