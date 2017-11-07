@@ -12,5 +12,5 @@ SET (CMAKE_C_FLAGS_INIT           "-Wall -std=c99")
 SET (CMAKE_C_FLAGS_DEBUG          "-g")
 SET (CMAKE_C_FLAGS_RELEASE        "-O4 -DNDEBUG")
 
-add_executable(${PROJECT_NAME} "main.c")
-target_link_libraries(${PROJECT_NAME} raylib glfw m X11)
+add_executable(demo "demo.c")
+target_link_libraries(demo raylib glfw m X11)

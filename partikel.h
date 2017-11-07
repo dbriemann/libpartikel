@@ -8,11 +8,10 @@
 *
 *
 *   FEATURES:
-*       - Written in plain C code (C99) in PascalCase/camelCase notation
 *       - Supports all platforms that raylib supports
 *
 *   DEPENDENCIES:
-*       raylib and all of its dependencies
+*       raylib >= v1.8.0 and all of its dependencies
 *
 *   LICENSE: zlib/libpng
 *
@@ -50,6 +49,7 @@
  *
  * 1) Check all alloc return values for NULL.
  * 2) Add non-continous emission.
+ * 3) Move blendmode to emitter.
  */
 
 
@@ -58,29 +58,29 @@
 typedef struct Particle Particle;
 
 
-// Utility functions.
+// Utility functions & structs.
 //----------------------------------------------------------------------------------
 
-// GetRandomDouble returns a random double between 0.0 and 1.0.
-double GetRandomDouble(double min, double max) {
-    double range = max - min;
-    double n = (double) GetRandomValue(0, RAND_MAX) / (double) RAND_MAX;
+// GetRandomFloat returns a random float between 0.0 and 1.0.
+float GetRandomFloat(float min, float max) {
+    float range = max - min;
+    float n = (float) GetRandomValue(0, RAND_MAX) / (float) RAND_MAX;
     return n*range + min;
 }
 
 // NormalizeV2 normalizes a 2d Vector and returns its unit vector.
 Vector2 NormalizeV2(Vector2 v) {
-    double len = sqrt(v.x*v.x + v.y*v.y);
+    float len = sqrt(v.x*v.x + v.y*v.y);
     return (Vector2) {.x = v.x/len, .y = v.y/len};
 }
 
 // LinearFade fades from Color c1 to Color c2. Fraction is a value between 0 and 1.
 // The interpolation is linear.
-Color LinearFade(Color c1, Color c2, double fraction) {
-    unsigned char newr = (unsigned char)((double)((int)c2.r - (int)c1.r) * fraction + (double)c1.r);
-    unsigned char newg = (unsigned char)((double)((int)c2.g - (int)c1.g) * fraction + (double)c1.g);
-    unsigned char newb = (unsigned char)((double)((int)c2.b - (int)c1.b) * fraction + (double)c1.b);
-    unsigned char newa = (unsigned char)((double)((int)c2.a - (int)c1.a) * fraction + (double)c1.a);
+Color LinearFade(Color c1, Color c2, float fraction) {
+    unsigned char newr = (unsigned char)((float)((int)c2.r - (int)c1.r) * fraction + (float)c1.r);
+    unsigned char newg = (unsigned char)((float)((int)c2.g - (int)c1.g) * fraction + (float)c1.g);
+    unsigned char newb = (unsigned char)((float)((int)c2.b - (int)c1.b) * fraction + (float)c1.b);
+    unsigned char newa = (unsigned char)((float)((int)c2.a - (int)c1.a) * fraction + (float)c1.a);
 
     Color c = {
         .r = newr,
@@ -92,20 +92,34 @@ Color LinearFade(Color c1, Color c2, double fraction) {
     return c;
 }
 
+// Min/Max pair structs for various types.
+typedef struct FloatMinMax {
+    float min;
+    float max;
+} FloatMinMax;
+
+typedef struct IntMinMax {
+    int min;
+    int max;
+} IntMinMax;
+
 
 // EmitterConfig type.
 //----------------------------------------------------------------------------------
 typedef struct EmitterConfig {
-    size_t maxParticles;       // Maximum amounts of particles in the system.
-    size_t emissionRate;        // Amount of particles emitted each second.
+    IntMinMax burst;
+    Vector2 direction;          // Direction vector will be normalized.
+    FloatMinMax angle;
+
+    size_t capacity;            // Maximum amounts of particles in the system.
+    size_t emissionRate;        // Amount of particles emitted each second.    
     Vector2 origin;             // Origin is the point, where the particles are emitted from.
     Vector2 emissionMin;        // Defines the minimum emission x,y.
     Vector2 emissionMax;        // Defines the maximum emission x,y.
     Vector2 acceleration;       // Constant acceleration. e.g. gravity.
     Color startColor;           // The color the particle starts with when it spawns.
     Color endColor;             // The color the particle ends with when it disappears.
-    double ageMin;              // Minimum age of a particle in seconds.
-    double ageMax;              // Maximum age of a particle in seconds.
+    FloatMinMax age;            // Defines age range of particles in seconds.
     Texture2D texture;          // The texture used as particle texture.
 
     bool (*particle_Deactivator)(struct Particle *); // Pointer to a function that determines when
@@ -120,9 +134,9 @@ typedef struct EmitterConfig {
 struct Particle {
     Vector2 position;       // Position of the particle in 2d space.
     Vector2 velocity;       // Velocity vector in 2d space.
-    Vector2 acceleration;   // (Uniform) acceleration vector in 2d space.
-    double age;             // Age is measured in seconds.
-    double ttl;             // Ttl is the time to live in seconds.
+    Vector2 acceleration;   // Acceleration vector in 2d space.
+    float age;              // Age is measured in seconds.
+    float ttl;              // Ttl is the time to live in seconds.
     bool active;            // Inactive particles are neither updated nor drawn.
 
     bool (*particle_Deactivator)(struct Particle *); // Pointer to a function that determines
@@ -165,17 +179,17 @@ void Particle_Free(Particle *p) {
 void Particle_Init(Particle *p, EmitterConfig *cfg) {
     p->position = cfg->origin;
     p->age = 0;
-    double rx = GetRandomDouble(cfg->emissionMin.x, cfg->emissionMax.x);
-    double ry = GetRandomDouble(cfg->emissionMin.y, cfg->emissionMax.y);
+    float rx = GetRandomFloat(cfg->emissionMin.x, cfg->emissionMax.x);
+    float ry = GetRandomFloat(cfg->emissionMin.y, cfg->emissionMax.y);
     p->velocity = (Vector2){.x = rx, .y = ry};
     p->acceleration = cfg->acceleration;
-    p->ttl = GetRandomDouble(cfg->ageMin, cfg->ageMax);
+    p->ttl = GetRandomFloat(cfg->age.min, cfg->age.max);
     p->active = true;
 }
 
 // Particle_update updates all properties according to the delta time (in seconds).
 // Deactivates the particle if the deactivator function returns true.
-void Particle_Update(Particle *p, double dt) {
+void Particle_Update(Particle *p, float dt) {
     if(!p->active) {
         return;
     }
@@ -203,7 +217,7 @@ void Particle_Update(Particle *p, double dt) {
 // Emitter is a single (point) source emitting many particles.
 typedef struct Emitter {    
     EmitterConfig config;
-    double mustEmit;            // Amount of particles to be emitted within next update call.
+    float mustEmit;            // Amount of particles to be emitted within next update call.
     Vector2 offset;             // Offset holds half the width and height of the texture.
     bool isEmitting;
     Particle **particles;       // Array of all particles (by pointer).
@@ -215,10 +229,10 @@ Emitter * Emitter_New(EmitterConfig cfg) {
     e->config = cfg;
     e->offset.x = e->config.texture.width/2;
     e->offset.y = e->config.texture.height/2;
-    e->particles = calloc(e->config.maxParticles, sizeof(Particle *));
+    e->particles = calloc(e->config.capacity, sizeof(Particle *));
     e->mustEmit = 0;
 
-    for(size_t i = 0; i < e->config.maxParticles; i++) {
+    for(size_t i = 0; i < e->config.capacity; i++) {
         e->particles[i] = Particle_New(e->config.particle_Deactivator);
     }
 
@@ -227,26 +241,26 @@ Emitter * Emitter_New(EmitterConfig cfg) {
 
 // Emitter_Reinit reinits the given Emitter with a new EmitterConfig.
 bool Emitter_Reinit(Emitter *e, EmitterConfig cfg) {
-    if(cfg.maxParticles > e->config.maxParticles) {
+    if(cfg.capacity > e->config.capacity) {
         // Array needs to be grown to the new size.
-        Particle **newParticles = realloc(e->particles, cfg.maxParticles * sizeof(Particle *));
+        Particle **newParticles = realloc(e->particles, cfg.capacity * sizeof(Particle *));
         if(newParticles == NULL) {
             return false;
         }
         e->particles = newParticles;
 
         // Create new Particles
-        for(size_t i = e->config.maxParticles; i < cfg.maxParticles; i++) {
+        for(size_t i = e->config.capacity; i < cfg.capacity; i++) {
             e->particles[i] = Particle_New(cfg.particle_Deactivator);
         }
-    } else if(cfg.maxParticles < e->config.maxParticles) {
+    } else if(cfg.capacity < e->config.capacity) {
         // First we free the now obsolete Particles.
-        for(size_t i = cfg.maxParticles; i < e->config.maxParticles; i++) {
+        for(size_t i = cfg.capacity; i < e->config.capacity; i++) {
             Particle_Free(e->particles[i]);
         }
 
         // Array needs to be shrunk to the new size.
-        Particle **newParticles = realloc(e->particles, cfg.maxParticles * sizeof(Particle *));
+        Particle **newParticles = realloc(e->particles, cfg.capacity * sizeof(Particle *));
         if(newParticles == NULL) {
             return false;
         }
@@ -257,7 +271,7 @@ bool Emitter_Reinit(Emitter *e, EmitterConfig cfg) {
     e->config = cfg;
 
     // Set new Particle deactivator function for all Particles.
-    for(size_t i = 0; i < e->config.maxParticles; i++) {
+    for(size_t i = 0; i < e->config.capacity; i++) {
         e->particles[i]->particle_Deactivator = e->config.particle_Deactivator;
     }
 
@@ -276,7 +290,7 @@ void Emitter_Stop(Emitter *e) {
 
 // Emitter_Free frees all allocated resources.
 void Emitter_Free(Emitter *e) {
-    for(size_t i = 0; i < e->config.maxParticles; i++) {
+    for(size_t i = 0; i < e->config.capacity; i++) {
         Particle_Free(e->particles[i]);
     }
     free(e->particles);
@@ -286,11 +300,13 @@ void Emitter_Free(Emitter *e) {
 // Emitter_Burst emits a specified amount of particles at once,
 // ignoring the state of e->isEmitting. Use this for singular events
 // instead of continuous output.
-void Emitter_Burst(Emitter *e, size_t amount) {
+void Emitter_Burst(Emitter *e) {
     Particle *p = NULL;
     size_t emitted = 0;
 
-    for(size_t i = 0; i < e->config.maxParticles; i++) {
+    int amount = GetRandomValue(e->config.burst.min, e->config.burst.max);
+
+    for(size_t i = 0; i < e->config.capacity; i++) {
         p = e->particles[i];
         if(!p->active) {
             Particle_Init(p, &e->config);
@@ -305,17 +321,17 @@ void Emitter_Burst(Emitter *e, size_t amount) {
 
 // Emitter_Update updates all particles and returns
 // the current amount of active particles.
-u_int32_t Emitter_Update(Emitter *e, double dt) {
+u_int32_t Emitter_Update(Emitter *e, float dt) {
     size_t emitNow = 0;
     Particle *p = NULL;
     u_int32_t counter = 0;
 
     if(e->isEmitting) {
-        e->mustEmit += dt * (double)e->config.emissionRate;
+        e->mustEmit += dt * (float)e->config.emissionRate;
         emitNow = (size_t)e->mustEmit; // floor
     }
 
-    for(size_t i = 0; i < e->config.maxParticles; i++) {
+    for(size_t i = 0; i < e->config.capacity; i++) {
         p = e->particles[i];
         if(p->active) {
             Particle_Update(p, dt);
@@ -337,7 +353,7 @@ u_int32_t Emitter_Update(Emitter *e, double dt) {
 // Emitter_Draw draws all active particles.
 void Emitter_Draw(Emitter *e, BlendMode bm) {
     BeginBlendMode(bm);
-    for(size_t i = 0; i < e->config.maxParticles; i++) {
+    for(size_t i = 0; i < e->config.capacity; i++) {
         Particle *p = e->particles[i];
         if(p->active) {
             DrawTexture(e->config.texture,
@@ -361,6 +377,7 @@ typedef struct ParticleSystem {
     bool active;
     size_t length;
     size_t capacity;
+    Vector2 origin;
     Emitter **emitters;
 } ParticleSystem;
 
@@ -371,6 +388,7 @@ ParticleSystem * ParticleSystem_New() {
     ps->active = false;
     ps->length = 0;
     ps->capacity = 1;
+    ps->origin = (Vector2){.x = 0, .y = 0};
     ps->emitters = calloc(ps->capacity, sizeof(Emitter*));
     return ps;
 }
@@ -419,18 +437,47 @@ bool ParticleSystem_Deregister(ParticleSystem *ps, Emitter *emitter) {
     return false;
 }
 
-// ParticleSystem_StartAll runs Emitter_Start on all registered Emitters.
-void ParticleSystem_StartAll(ParticleSystem *ps) {
+// ParticleSystem_SetOrigin sets the origin for all registered Emitters.
+void ParticleSystem_SetOrigin(ParticleSystem *ps, Vector2 origin) {
+    ps->origin = origin;
+    for(size_t i = 0; i < ps->length; i++) {
+        ps->emitters[i]->config.origin = origin;
+    }
+}
+
+// ParticleSystem_Start runs Emitter_Start on all registered Emitters.
+void ParticleSystem_Start(ParticleSystem *ps) {
     for(size_t i = 0; i < ps->length; i++) {
         Emitter_Start(ps->emitters[i]);
     }
 }
 
-// ParticleSystem_StopAll runs Emitter_Stop on all registered Emitters.
-void ParticleSystem_StopAll(ParticleSystem *ps) {
+// ParticleSystem_Stop runs Emitter_Stop on all registered Emitters.
+void ParticleSystem_Stop(ParticleSystem *ps) {
     for(size_t i = 0; i < ps->length; i++) {
         Emitter_Stop(ps->emitters[i]);
     }
+}
+
+// ParticleSystem_Burst runs Emitter_Burst on all registered Emitters.
+void ParticleSystem_Burst(ParticleSystem *ps) {
+    // TODO
+}
+
+// ParticleSystem_Draw runs Emitter_Draw on all registered Emitters.
+void ParticleSystem_Draw(ParticleSystem *ps, BlendMode bm) {
+    for(size_t i = 0; i < ps->length; i++) {
+        Emitter_Draw(ps->emitters[i], bm);
+    }
+}
+
+// ParticleSystem_Update runs Emitter_Update on all registered Emitters.
+size_t ParticleSystem_Update(ParticleSystem *ps, float dt) {
+    size_t counter = 0;
+    for(size_t i = 0; i < ps->length; i++) {
+        counter += Emitter_Update(ps->emitters[i], dt);
+    }
+    return counter;
 }
 
 // ParticleSystem_Free only frees its own resources.
