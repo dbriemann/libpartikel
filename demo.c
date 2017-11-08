@@ -28,12 +28,15 @@ Texture2D texCircle16;
 Texture2D texCircle8;
 Texture2D texCircle4;
 
-int activePS = 1;
+int activePS = 2;
 
 ParticleSystem *ps1 = NULL;
 Emitter *emitterFountain1 = NULL;
 Emitter *emitterFountain2 = NULL;
 Emitter *emitterFountain3 = NULL;
+
+ParticleSystem *ps2 = NULL;
+Emitter *emitterSwirl1 = NULL;
 
 
 // Define a custom particle deactivator function.
@@ -44,7 +47,7 @@ bool Particle_DeactivatorFountain(Particle *p) {
             || Particle_DeactivatorAge(p));
 }
 
-bool Particle_DeactivatorFire(Particle *p) {
+bool Particle_DeactivatorOutsideCam(Particle *p) {
     return (p->position.y < (camera.target.y - camera.offset.y)
             || Particle_DeactivatorAge(p));
 }
@@ -53,16 +56,19 @@ void InitFountain() {
     ps1 = ParticleSystem_New();
 
     EmitterConfig ecfg1 = {
-        .capacity = 1000,
+        .capacity = 600,
         .emissionRate = 200,
         .origin = (Vector2){.x = 0, .y = 0},
+        .originAcceleration = (FloatMinMax){.min = 0, .max = 0},
         .direction = (Vector2){.x = 0, .y = -1}, // go up
-        .angle = (FloatMinMax){.min = -6, .max = 6}, // angle range -8 to +8 degree deviation from direction
-        .velocity = (FloatMinMax){.min = -700, .max = -730},
-        .acceleration = (Vector2){.x = 0, .y = 981},
+        .directionAngle = (FloatMinMax){.min = -6, .max = 6}, // angle range -8 to +8 degree deviation from direction
+        .velocityAngle = (FloatMinMax){.min = 0, .max = 0},
+        .velocity = (FloatMinMax){.min = 700, .max = 730},
+        .externalAcceleration = (Vector2){.x = 0, .y = 981},
         .startColor = (Color){.r = 0, .g = 20, .b = 255, .a = 255},
         .endColor = (Color){.r = 0, .g = 150, .b = 100, .a = 0},
         .age = (FloatMinMax){.min = 1.0, .max = 3.0},
+//        .offset = (FloatMinMax){.min = -10.0, .max = -100.0},
         .texture = texCircle16,
 
         .particle_Deactivator = Particle_DeactivatorFountain
@@ -70,21 +76,50 @@ void InitFountain() {
     emitterFountain1 = Emitter_New(ecfg1);
     ParticleSystem_Register(ps1, emitterFountain1);
 
-    ecfg1.angle = (FloatMinMax){.min = -1.5, .max = 1.5},
-    ecfg1.velocity = (FloatMinMax){.min = -800, .max = -850},
+    ecfg1.directionAngle = (FloatMinMax){.min = -1.5, .max = 1.5},
+    ecfg1.velocity = (FloatMinMax){.min = 800, .max = 850},
     ecfg1.texture = texCircle8;
     emitterFountain2 = Emitter_New(ecfg1);
     ParticleSystem_Register(ps1, emitterFountain2);
 
     ecfg1.capacity = 3000;
     ecfg1.emissionRate = 1000;
-    ecfg1.angle = (FloatMinMax){.min = -20, .max = 20},
-    ecfg1.velocity = (FloatMinMax){.min = -500, .max = -550},
+    ecfg1.directionAngle = (FloatMinMax){.min = -20, .max = 20},
+    ecfg1.velocity = (FloatMinMax){.min = 500, .max = 550},
     ecfg1.texture = texCircle16;
+    ecfg1.age = (FloatMinMax){.min = 0.0, .max = 3.0};
     emitterFountain3 = Emitter_New(ecfg1);
     ParticleSystem_Register(ps1, emitterFountain3);
 
     ParticleSystem_Start(ps1);
+}
+
+void InitSwirl() {
+    ps2 = ParticleSystem_New();
+
+    EmitterConfig ecfg = {
+        .capacity = 10000,
+        .emissionRate = 2000,
+        .origin = (Vector2){.x = 0, .y = 0},
+        .originAcceleration = (FloatMinMax){.min = 100, .max = 200},
+        .offset = (FloatMinMax){.min = 10, .max = 20},
+        .direction = (Vector2){.x = 0, .y = -1}, // go up
+        .directionAngle = (FloatMinMax){.min = -180, .max = 180}, // angle range -8 to +8 degree deviation from direction
+        .velocityAngle = (FloatMinMax){.min = 80, .max = 100},
+        .velocity = (FloatMinMax){.min = 100, .max = 300},
+//        .externalAcceleration = (Vector2){.x = 0, .y = 981},
+        .startColor = (Color){.r = 244, .g = 20, .b = 0, .a = 255},
+        .endColor = (Color){.r = 244, .g = 20, .b = 0, .a = 0},
+        .age = (FloatMinMax){.min = 2.5, .max = 5.0},
+        .texture = texCircle8,
+
+        .particle_Deactivator = Particle_DeactivatorOutsideCam
+    };
+
+    emitterSwirl1 = Emitter_New(ecfg);
+    ParticleSystem_Register(ps2, emitterSwirl1);
+
+    ParticleSystem_Start(ps2);
 }
 
 void DestroyFountain() {
@@ -93,6 +128,12 @@ void DestroyFountain() {
     Emitter_Free(emitterFountain3);
 
     ParticleSystem_Free(ps1);
+}
+
+void DestroySwirl() {
+    Emitter_Free(emitterSwirl1);
+
+    ParticleSystem_Free(ps2);
 }
 
 // Init sets up all relevant data.
@@ -119,11 +160,13 @@ void Init() {
     UnloadImage(imgCircle16);
 
     InitFountain();
+    InitSwirl();
 }
 
 // Destroy and free all the global data.
 void Destroy() {
     DestroyFountain();
+    DestroySwirl();
 
     UnloadTexture(texCircle4);
     UnloadTexture(texCircle8);
@@ -162,6 +205,8 @@ void Update(double dt) {
         counter += ParticleSystem_Update(ps1, dt);
         break;
     case 2:
+        ParticleSystem_SetOrigin(ps2, (Vector2){.x = m.x, .y = m.y});
+        counter += ParticleSystem_Update(ps2, dt);
         break;
     default:
         break;
@@ -183,6 +228,7 @@ void Draw() {
         ParticleSystem_Draw(ps1, BLEND_ADDITIVE);
         break;
     case 2:
+        ParticleSystem_Draw(ps2, BLEND_ADDITIVE);
         break;
     default:
         break;

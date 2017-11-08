@@ -47,6 +47,7 @@
 
 /**  TODOs
  *
+ * 0) MAYBE switch to purely function pointer based solution.. THINK ABOUT IT :)
  * 1) Check all alloc return values for NULL.
  * 2) Add non-continous emission.
  * 3) Move blendmode to emitter (member variable).
@@ -61,6 +62,14 @@ typedef struct Particle Particle;
 // Utility functions & structs.
 //----------------------------------------------------------------------------------
 
+float DegreesToRad(float deg) {
+    return deg * PI / 180;
+}
+
+float RadToDegrees(float rad) {
+    return rad * 180 / PI;
+}
+
 // GetRandomFloat returns a random float between 0.0 and 1.0.
 float GetRandomFloat(float min, float max) {
     float range = max - min;
@@ -70,17 +79,22 @@ float GetRandomFloat(float min, float max) {
 
 // NormalizeV2 normalizes a 2d Vector and returns its unit vector.
 Vector2 NormalizeV2(Vector2 v) {
+    if(v.x == 0 && v.y == 0){
+        return v;
+    }
     float len = sqrt(v.x*v.x + v.y*v.y);
     return (Vector2) {.x = v.x/len, .y = v.y/len};
 }
 
-float DegreesToRad(float deg) {
-    return deg * PI / 180;
+Vector2 RotateV2(Vector2 v, float degrees) {
+    float rad = DegreesToRad(degrees);
+    Vector2 res = {
+       .x = cos(rad) * v.x - sin(rad) * v.y,
+       .y = sin(rad) * v.x + cos(rad) * v.y
+    };
+    return res;
 }
 
-float RadToDegrees(float rad) {
-    return rad * 180 / PI;
-}
 
 // LinearFade fades from Color c1 to Color c2. Fraction is a value between 0 and 1.
 // The interpolation is linear.
@@ -116,19 +130,21 @@ typedef struct IntMinMax {
 //----------------------------------------------------------------------------------
 typedef struct EmitterConfig {
     IntMinMax burst;
-    Vector2 direction;          // Direction vector will be normalized.
-    FloatMinMax velocity;       // Defines the possible range of the particle velocities.
-                                // Velocity is a scalar defining the length of the direction vector.
-    FloatMinMax angle;          // Defines the angle range modiying the direction vector.
-
-    size_t capacity;            // Maximum amounts of particles in the system.
-    size_t emissionRate;        // Amount of particles emitted each second.    
-    Vector2 origin;             // Origin is the point, where the particles are emitted from.
-    Vector2 acceleration;       // Constant acceleration. e.g. gravity.
-    Color startColor;           // The color the particle starts with when it spawns.
-    Color endColor;             // The color the particle ends with when it disappears.
-    FloatMinMax age;            // Defines age range of particles in seconds.
-    Texture2D texture;          // The texture used as particle texture.
+    Vector2 direction;              // Direction vector will be normalized.
+    FloatMinMax velocity;           // The possible range of the particle velocities.
+                                    // Velocity is a scalar defining the length of the direction vector.
+    FloatMinMax directionAngle;     // The angle range modiying the direction vector.
+    FloatMinMax velocityAngle;      // The angle range to rotate the velocity vector.
+    FloatMinMax offset;             // The min and max offset multiplier for the particle origin.
+    FloatMinMax originAcceleration; // An acceleration towards or from (centrifugal) the origin.
+    size_t capacity;                // Maximum amounts of particles in the system.
+    size_t emissionRate;            // Rate of emitted particles per second.
+    Vector2 origin;                 // Origin is the source of the emitter.
+    Vector2 externalAcceleration;   // External constant acceleration. e.g. gravity.
+    Color startColor;               // The color the particle starts with when it spawns.
+    Color endColor;                 // The color the particle ends with when it disappears.
+    FloatMinMax age;                // Age range of particles in seconds.
+    Texture2D texture;              // The texture used as particle texture.
 
     bool (*particle_Deactivator)(struct Particle *); // Pointer to a function that determines when
                                                      // a particle is deactivated.
@@ -140,12 +156,14 @@ typedef struct EmitterConfig {
 
 // Particle describes one particle in a particle system.
 struct Particle {
-    Vector2 position;       // Position of the particle in 2d space.
-    Vector2 velocity;       // Velocity vector in 2d space.
-    Vector2 acceleration;   // Acceleration vector in 2d space.
-    float age;              // Age is measured in seconds.
-    float ttl;              // Ttl is the time to live in seconds.
-    bool active;            // Inactive particles are neither updated nor drawn.
+    Vector2 origin;                 // The origin of the particle (never changes).
+    Vector2 position;               // Position of the particle in 2d space.
+    Vector2 velocity;               // Velocity vector in 2d space.
+    Vector2 externalAcceleration;   // Acceleration vector in 2d space.
+    float originAcceleration;       // Accelerates velocity vector
+    float age;                      // Age is measured in seconds.
+    float ttl;                      // Ttl is the time to live in seconds.
+    bool active;                    // Inactive particles are neither updated nor drawn.
 
     bool (*particle_Deactivator)(struct Particle *); // Pointer to a function that determines
                                                      // when a particle is deactivated.
@@ -164,7 +182,8 @@ Particle * Particle_New(bool (*deactivatorFunc)(struct Particle *)) {
     *p = (Particle){
         .position = (Vector2){.x = 0, .y = 0},
         .velocity = (Vector2){.x = 0, .y = 0},
-        .acceleration = (Vector2){.x = 0, .y = 0},
+        .externalAcceleration = (Vector2){.x = 0, .y = 0},
+        .originAcceleration = 0,
         .age = 0,
         .ttl = 0,
         .active = false,
@@ -184,20 +203,37 @@ void Particle_Free(Particle *p) {
 }
 
 // Particle_Init inits a particle. It is then ready to be updated and drawn.
-void Particle_Init(Particle *p, EmitterConfig *cfg) {
-    p->position = cfg->origin;
+void Particle_Init(Particle *p, EmitterConfig *cfg) {  
     p->age = 0;
+    p->origin = cfg->origin;
+
     // Get a random angle to find an random velocity.
-    float randa = GetRandomFloat(cfg->angle.min, cfg->angle.max);
+    float randa = GetRandomFloat(cfg->directionAngle.min, cfg->directionAngle.max);
+
     // Rotate base direction with the given angle.
-    Vector2 res = cfg->direction;
-    res.x = cos(DegreesToRad(randa)) * cfg->direction.x - sin(DegreesToRad(randa)) * cfg->direction.y;
-    res.y = sin(DegreesToRad(randa)) * cfg->direction.x - cos(DegreesToRad(randa)) * cfg->direction.y;
+    Vector2 res = RotateV2(cfg->direction, randa);
+
     // Get a random value for velocity range (direction is normalized).
     float randv = GetRandomFloat(cfg->velocity.min, cfg->velocity.max);
+
     // Multiply direction with factor to set actual velocity in the Particle.
     p->velocity = (Vector2){.x = res.x * randv, .y = res.y * randv};
-    p->acceleration = cfg->acceleration;
+
+    // Get a random angle to rotate the velocity vector.
+    randa = GetRandomFloat(cfg->velocityAngle.min, cfg->velocityAngle.max);
+
+    // Rotate velocity vector with given angle.
+    p->velocity = RotateV2(p->velocity, randa);
+
+    // Get a random value for origin offset and apply it to position.
+    float rando = GetRandomFloat(cfg->offset.min, cfg->offset.max);
+    p->position.x = cfg->origin.x + res.x * rando;
+    p->position.y = cfg->origin.y + res.y * rando;
+
+    // Get a random value for the intrinsic particle acceleration
+    float rands = GetRandomFloat(cfg->originAcceleration.min, cfg->originAcceleration.max);
+    p->originAcceleration = rands;
+    p->externalAcceleration = cfg->externalAcceleration;
     p->ttl = GetRandomFloat(cfg->age.min, cfg->age.max);
     p->active = true;
 }
@@ -216,9 +252,20 @@ void Particle_Update(Particle *p, float dt) {
         return;
     }    
 
-    // Update velocity by acceleration.
-    p->velocity.x += p->acceleration.x*dt;
-    p->velocity.y += p->acceleration.y*dt;
+    Vector2 toOrigin = NormalizeV2((Vector2){
+        .x = p->origin.x - p->position.x,
+        .y = p->origin.y - p->position.y
+    });
+
+    // Update velocity by internal acceleration.
+//    printf("x %f, y %f\n", toOrigin.x, toOrigin.y);
+    p->velocity.x += toOrigin.x * p->originAcceleration * dt;
+    p->velocity.y += toOrigin.y * p->originAcceleration * dt;
+//    printf("x %f, y %f\n", toOrigin.x, toOrigin.y);
+
+    // Update velocity by external acceleration.
+    p->velocity.x += p->externalAcceleration.x*dt;
+    p->velocity.y += p->externalAcceleration.y*dt;
 
     // Update position by velocity.
     p->position.x += p->velocity.x * dt;
@@ -356,7 +403,6 @@ u_int32_t Emitter_Update(Emitter *e, float dt) {
         } else if(e->isEmitting && emitNow > 0) {
             // emit new particles here
             Particle_Init(p, &e->config);
-            p->position = e->config.origin;
             Particle_Update(p, dt);
             emitNow--;
             e->mustEmit--;
