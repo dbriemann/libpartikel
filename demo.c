@@ -53,11 +53,12 @@ void InitFountain() {
     ps1 = ParticleSystem_New();
 
     EmitterConfig ecfg1 = {
-        .capacity = 2000,
+        .capacity = 1000,
         .emissionRate = 200,
         .origin = (Vector2){.x = 0, .y = 0},
-        .emissionMin = (Vector2){.x = -70, .y = -720},
-        .emissionMax = (Vector2){.x = 70, .y = -750},
+        .direction = (Vector2){.x = 0, .y = -1}, // go up
+        .angle = (FloatMinMax){.min = -6, .max = 6}, // angle range -8 to +8 degree deviation from direction
+        .velocity = (FloatMinMax){.min = -700, .max = -730},
         .acceleration = (Vector2){.x = 0, .y = 981},
         .startColor = (Color){.r = 0, .g = 20, .b = 255, .a = 255},
         .endColor = (Color){.r = 0, .g = 150, .b = 100, .a = 0},
@@ -69,18 +70,16 @@ void InitFountain() {
     emitterFountain1 = Emitter_New(ecfg1);
     ParticleSystem_Register(ps1, emitterFountain1);
 
-    ecfg1.capacity = 1000;
-    ecfg1.emissionRate = 200;
-    ecfg1.emissionMin = (Vector2){.x = -20, .y = -800};
-    ecfg1.emissionMax = (Vector2){.x = 20, .y = -850};
+    ecfg1.angle = (FloatMinMax){.min = -1.5, .max = 1.5},
+    ecfg1.velocity = (FloatMinMax){.min = -800, .max = -850},
     ecfg1.texture = texCircle8;
     emitterFountain2 = Emitter_New(ecfg1);
     ParticleSystem_Register(ps1, emitterFountain2);
 
-    ecfg1.capacity = 4000;
+    ecfg1.capacity = 3000;
     ecfg1.emissionRate = 1000;
-    ecfg1.emissionMin = (Vector2){.x = -200, .y = -500};
-    ecfg1.emissionMax = (Vector2){.x = 200, .y = -550};
+    ecfg1.angle = (FloatMinMax){.min = -20, .max = 20},
+    ecfg1.velocity = (FloatMinMax){.min = -500, .max = -550},
     ecfg1.texture = texCircle16;
     emitterFountain3 = Emitter_New(ecfg1);
     ParticleSystem_Register(ps1, emitterFountain3);

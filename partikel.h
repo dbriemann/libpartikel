@@ -49,7 +49,7 @@
  *
  * 1) Check all alloc return values for NULL.
  * 2) Add non-continous emission.
- * 3) Move blendmode to emitter.
+ * 3) Move blendmode to emitter (member variable).
  */
 
 
@@ -72,6 +72,14 @@ float GetRandomFloat(float min, float max) {
 Vector2 NormalizeV2(Vector2 v) {
     float len = sqrt(v.x*v.x + v.y*v.y);
     return (Vector2) {.x = v.x/len, .y = v.y/len};
+}
+
+float DegreesToRad(float deg) {
+    return deg * PI / 180;
+}
+
+float RadToDegrees(float rad) {
+    return rad * 180 / PI;
 }
 
 // LinearFade fades from Color c1 to Color c2. Fraction is a value between 0 and 1.
@@ -109,13 +117,13 @@ typedef struct IntMinMax {
 typedef struct EmitterConfig {
     IntMinMax burst;
     Vector2 direction;          // Direction vector will be normalized.
-    FloatMinMax angle;
+    FloatMinMax velocity;       // Defines the possible range of the particle velocities.
+                                // Velocity is a scalar defining the length of the direction vector.
+    FloatMinMax angle;          // Defines the angle range modiying the direction vector.
 
     size_t capacity;            // Maximum amounts of particles in the system.
     size_t emissionRate;        // Amount of particles emitted each second.    
     Vector2 origin;             // Origin is the point, where the particles are emitted from.
-    Vector2 emissionMin;        // Defines the minimum emission x,y.
-    Vector2 emissionMax;        // Defines the maximum emission x,y.
     Vector2 acceleration;       // Constant acceleration. e.g. gravity.
     Color startColor;           // The color the particle starts with when it spawns.
     Color endColor;             // The color the particle ends with when it disappears.
@@ -179,9 +187,16 @@ void Particle_Free(Particle *p) {
 void Particle_Init(Particle *p, EmitterConfig *cfg) {
     p->position = cfg->origin;
     p->age = 0;
-    float rx = GetRandomFloat(cfg->emissionMin.x, cfg->emissionMax.x);
-    float ry = GetRandomFloat(cfg->emissionMin.y, cfg->emissionMax.y);
-    p->velocity = (Vector2){.x = rx, .y = ry};
+    // Get a random angle to find an random velocity.
+    float randa = GetRandomFloat(cfg->angle.min, cfg->angle.max);
+    // Rotate base direction with the given angle.
+    Vector2 res = cfg->direction;
+    res.x = cos(DegreesToRad(randa)) * cfg->direction.x - sin(DegreesToRad(randa)) * cfg->direction.y;
+    res.y = sin(DegreesToRad(randa)) * cfg->direction.x - cos(DegreesToRad(randa)) * cfg->direction.y;
+    // Get a random value for velocity range (direction is normalized).
+    float randv = GetRandomFloat(cfg->velocity.min, cfg->velocity.max);
+    // Multiply direction with factor to set actual velocity in the Particle.
+    p->velocity = (Vector2){.x = res.x * randv, .y = res.y * randv};
     p->acceleration = cfg->acceleration;
     p->ttl = GetRandomFloat(cfg->age.min, cfg->age.max);
     p->active = true;
@@ -231,6 +246,8 @@ Emitter * Emitter_New(EmitterConfig cfg) {
     e->offset.y = e->config.texture.height/2;
     e->particles = calloc(e->config.capacity, sizeof(Particle *));
     e->mustEmit = 0;
+    // Normalize direction for future uses.
+    e->config.direction = NormalizeV2(e->config.direction);
 
     for(size_t i = 0; i < e->config.capacity; i++) {
         e->particles[i] = Particle_New(e->config.particle_Deactivator);
