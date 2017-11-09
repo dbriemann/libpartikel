@@ -1,4 +1,4 @@
-#libpartikel
+# libpartikel
 Libpartikel is a header only particle system written in C99 with and for [raylib](https://github.com/raysan5/raylib). It is currently in a very early stage (alpha) and thus:
 
 * There will be bugs.
@@ -7,7 +7,7 @@ Libpartikel is a header only particle system written in C99 with and for [raylib
 
 **LICENSE: zlib/libpng ** (see partikel.h)
 
-##GIFs
+## GIFs
 Some examples of particle systems made with libpartikel recorded as 60fps GIFs.
 
 Large files.. avoid to watch on mobile :)
@@ -16,13 +16,13 @@ Large files.. avoid to watch on mobile :)
 * [swirl](https://github.com/dbriemann/expo/blob/master/partikel-swirl.gif?raw=true)
 * [flame](https://github.com/dbriemann/expo/blob/master/partikel-flame.gif?raw=true)
 
-##Dependencies
+## Dependencies
 * [raylib](https://github.com/raysan5/raylib)
 
-##Usage
+## Usage
 Just have raylib installed on your system and copy partikel.h to your project and include it.
 
-##Run demo
+## Run demo
 Note: the cmake is currently only configured for Linux. If you can help with Mac or Windows just submit a pull request.
 
 #### Linux
