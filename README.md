@@ -12,9 +12,9 @@ Some examples of particle systems made with libpartikel recorded as 60fps GIFs.
 
 Large files.. avoid to watch on mobile :)
 
-* [fountain](https://github.com/dbriemann/expo/blob/master/partikel-fountain.gif?raw=true)
-* [swirl](https://github.com/dbriemann/expo/blob/master/partikel-swirl.gif?raw=true)
-* [flame](https://github.com/dbriemann/expo/blob/master/partikel-flame.gif?raw=true)
+* [fountain](https://github.com/dbriemann/expo/blob/master/partikel-fountain.gif)
+* [swirl](https://github.com/dbriemann/expo/blob/master/partikel-swirl.gif)
+* [flame](https://github.com/dbriemann/expo/blob/master/partikel-flame.gif)
 
 ## Dependencies
 * [raylib](https://github.com/raysan5/raylib)
