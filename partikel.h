@@ -48,9 +48,7 @@
 /**  TODOs
  *
  * 0) MAYBE switch to purely function pointer based solution.. THINK ABOUT IT :)
- * 1) Check all alloc return values for NULL.
- * 2) Add non-continous emission.
- * 3) Move blendmode to emitter (member variable).
+ * 1) Move blendmode to emitter (member variable).
  */
 
 
@@ -115,35 +113,35 @@ Color LinearFade(Color c1, Color c2, float fraction) {
 }
 
 // Min/Max pair structs for various types.
-typedef struct FloatMinMax {
+typedef struct FloatRange {
     float min;
     float max;
-} FloatMinMax;
+} FloatRange;
 
-typedef struct IntMinMax {
+typedef struct IntRange {
     int min;
     int max;
-} IntMinMax;
+} IntRange;
 
 
 // EmitterConfig type.
 //----------------------------------------------------------------------------------
-typedef struct EmitterConfig {
-    IntMinMax burst;
+typedef struct EmitterConfig {    
     Vector2 direction;              // Direction vector will be normalized.
-    FloatMinMax velocity;           // The possible range of the particle velocities.
+    FloatRange velocity;            // The possible range of the particle velocities.
                                     // Velocity is a scalar defining the length of the direction vector.
-    FloatMinMax directionAngle;     // The angle range modiying the direction vector.
-    FloatMinMax velocityAngle;      // The angle range to rotate the velocity vector.
-    FloatMinMax offset;             // The min and max offset multiplier for the particle origin.
-    FloatMinMax originAcceleration; // An acceleration towards or from (centrifugal) the origin.
+    FloatRange directionAngle;      // The angle range modiying the direction vector.
+    FloatRange velocityAngle;       // The angle range to rotate the velocity vector.
+    FloatRange offset;              // The min and max offset multiplier for the particle origin.
+    FloatRange originAcceleration;  // An acceleration towards or from (centrifugal) the origin.
+    IntRange burst;                 // The range of sudden particle bursts.
     size_t capacity;                // Maximum amounts of particles in the system.
     size_t emissionRate;            // Rate of emitted particles per second.
     Vector2 origin;                 // Origin is the source of the emitter.
     Vector2 externalAcceleration;   // External constant acceleration. e.g. gravity.
     Color startColor;               // The color the particle starts with when it spawns.
     Color endColor;                 // The color the particle ends with when it disappears.
-    FloatMinMax age;                // Age range of particles in seconds.
+    FloatRange age;                 // Age range of particles in seconds.
     Texture2D texture;              // The texture used as particle texture.
 
     bool (*particle_Deactivator)(struct Particle *); // Pointer to a function that determines when
@@ -179,6 +177,9 @@ bool Particle_DeactivatorAge(Particle *p) {
 // The deactivator function may be omitted by passing NULL.
 Particle * Particle_New(bool (*deactivatorFunc)(struct Particle *)) {
     Particle *p = calloc(1, sizeof(Particle));
+    if(p == NULL) {
+        return NULL;
+    }
     *p = (Particle){
         .position = (Vector2){.x = 0, .y = 0},
         .velocity = (Vector2){.x = 0, .y = 0},
@@ -258,10 +259,8 @@ void Particle_Update(Particle *p, float dt) {
     });
 
     // Update velocity by internal acceleration.
-//    printf("x %f, y %f\n", toOrigin.x, toOrigin.y);
     p->velocity.x += toOrigin.x * p->originAcceleration * dt;
     p->velocity.y += toOrigin.y * p->originAcceleration * dt;
-//    printf("x %f, y %f\n", toOrigin.x, toOrigin.y);
 
     // Update velocity by external acceleration.
     p->velocity.x += p->externalAcceleration.x*dt;
@@ -288,10 +287,17 @@ typedef struct Emitter {
 // Emitter_New creates a new Emitter object.
 Emitter * Emitter_New(EmitterConfig cfg) {
     Emitter *e = calloc(1, sizeof(Emitter));
+    if(e == NULL) {
+        return NULL;
+    }
     e->config = cfg;
     e->offset.x = e->config.texture.width/2;
     e->offset.y = e->config.texture.height/2;
     e->particles = calloc(e->config.capacity, sizeof(Particle *));
+    if(e->particles == NULL) {
+        free(e);
+        return NULL;
+    }
     e->mustEmit = 0;
     // Normalize direction for future uses.
     e->config.direction = NormalizeV2(e->config.direction);
@@ -448,11 +454,18 @@ typedef struct ParticleSystem {
 // with the given amount of emitters.
 ParticleSystem * ParticleSystem_New() {
     ParticleSystem *ps = calloc(1, sizeof(ParticleSystem));
+    if(ps == NULL) {
+        return NULL;
+    }
     ps->active = false;
     ps->length = 0;
     ps->capacity = 1;
     ps->origin = (Vector2){.x = 0, .y = 0};
     ps->emitters = calloc(ps->capacity, sizeof(Emitter*));
+    if(ps->emitters == NULL) {
+        free(ps);
+        return NULL;
+    }
     return ps;
 }
 
@@ -524,7 +537,9 @@ void ParticleSystem_Stop(ParticleSystem *ps) {
 
 // ParticleSystem_Burst runs Emitter_Burst on all registered Emitters.
 void ParticleSystem_Burst(ParticleSystem *ps) {
-    // TODO
+    for(size_t i = 0; i < ps->length; i++) {
+        Emitter_Burst(ps->emitters[i]);
+    }
 }
 
 // ParticleSystem_Draw runs Emitter_Draw on all registered Emitters.
