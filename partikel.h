@@ -391,10 +391,10 @@ void Emitter_Burst(Emitter *e) {
 
 // Emitter_Update updates all particles and returns
 // the current amount of active particles.
-u_int32_t Emitter_Update(Emitter *e, float dt) {
+unsigned long Emitter_Update(Emitter *e, float dt) {
     size_t emitNow = 0;
     Particle *p = NULL;
-    u_int32_t counter = 0;
+    unsigned long counter = 0;
 
     if(e->isEmitting) {
         e->mustEmit += dt * (float)e->config.emissionRate;

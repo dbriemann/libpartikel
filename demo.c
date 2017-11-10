@@ -21,7 +21,7 @@
 //----------------------------------------------------------------------------------
 int screenWidth = 1000;
 int screenHeight = 800;
-u_int32_t counter = 0;
+unsigned long counter = 0;
 Camera2D camera;
 
 Texture2D texCircle16;
@@ -376,7 +376,7 @@ void Draw() {
     // Draw HUD etc. here.
     DrawFPS(10, 10);
     char pcount[40];
-    sprintf(pcount, "Particles: %d", counter);    
+    sprintf(pcount, "Particles: %lu", counter);
     DrawText(pcount, 10, 40, 20, DARKGREEN);
     sprintf(pcount, "Press number keys to switch demo.");
     DrawText(pcount, 580, 10, 20, DARKGREEN);
