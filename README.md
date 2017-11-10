@@ -5,7 +5,7 @@ Libpartikel is a header only particle system written in C99 with and for [raylib
 * The API will most certainly change.
 * Feature requests and bug tickets are welcome.
 
-**LICENSE: zlib/libpng ** (see partikel.h)
+**LICENSE: zlib/libpng** (see partikel.h)
 
 ## GIFs
 Some examples of particle systems made with libpartikel recorded as 60fps GIFs.
