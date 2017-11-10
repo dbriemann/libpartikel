@@ -13,6 +13,8 @@
 *
 ********************************************************************************************/
 
+#define LIBPARTIKEL_IMPLEMENTATION
+
 #include "stdio.h"
 #include "raylib.h"
 #include "partikel.h"
@@ -84,6 +86,7 @@ void InitFountain() {
         .endColor = (Color){.r = 0, .g = 150, .b = 100, .a = 0},
         .age = (FloatRange){.min = 1.0, .max = 3.0},
         .texture = texCircle16,
+        .blendMode = BLEND_ADDITIVE,
 
         .particle_Deactivator = Particle_DeactivatorFountain
     };
@@ -137,6 +140,7 @@ void InitSwirl() {
         .endColor = (Color){.r = 244, .g = 20, .b = 0, .a = 0},
         .age = (FloatRange){.min = 2.5, .max = 5.0},
         .texture = texCircle8,
+        .blendMode = BLEND_ADDITIVE,
 
         .particle_Deactivator = Particle_DeactivatorOutsideCam
     };
@@ -195,6 +199,7 @@ void InitFlame() {
         .endColor = (Color){.r = 255, .g = 20, .b = 0, .a = 0},
         .age = (FloatRange){.min = 1.0, .max = 2.0},
         .texture = texCircle16,
+        .blendMode = BLEND_ADDITIVE,
 
         .particle_Deactivator = Particle_DeactivatorFountain
     };
@@ -359,13 +364,13 @@ void Draw() {
     // Draw scene here.
     switch (activePS) {
     case 1:
-        ParticleSystem_Draw(ps1, BLEND_ADDITIVE);
+        ParticleSystem_Draw(ps1);
         break;
     case 2:
-        ParticleSystem_Draw(ps2, BLEND_ADDITIVE);
+        ParticleSystem_Draw(ps2);
         break;
     case 3:
-        ParticleSystem_Draw(ps3, BLEND_ADDITIVE);
+        ParticleSystem_Draw(ps3);
         break;
     default:
         break;

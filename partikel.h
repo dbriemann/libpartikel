@@ -13,6 +13,15 @@
 *   DEPENDENCIES:
 *       raylib >= v1.8.0 and all of its dependencies
 *
+*   CONFIGURATION:
+*   #define LIBPARTIKEL_IMPLEMENTATION
+*       Generates the implementation of the library into the included file.
+*       If not defined, the library is in header only mode and can be included in other headers
+*       or source files without problems. But only ONE file should hold the implementation.
+*   #define LIBPARTIKEL_INCLUDE
+*       If defined, the library can be used as standalone as a camera system but some
+*       functions must be redefined to manage inputs accordingly.
+*
 *   LICENSE: zlib/libpng
 *
 *   libpartikel is licensed under an unmodified zlib/libpng license, which is an OSI-certified,
@@ -44,18 +53,66 @@
 #include "math.h"
 #include "raylib.h"
 
-
 /**  TODOs
  *
- * 0) MAYBE switch to purely function pointer based solution.. THINK ABOUT IT :)
- * 1) Move blendmode to emitter (member variable).
+ * 0) MAYBE switch to purely function pointer based system.. handle Init, Update, Draw etc.
+ *    all as function pointers and make it possible to use a custom one. See current handling
+ *    of Particle deactivation functions as example.
+ *
  */
 
+// -----------------------------------------------------------------------
+// THIS MUST BE COMMENTED OUT
+// You need to uncomment it in some editors to enable syntax highlighting
+// in the following code.
+//#define LIBPARTIKEL_IMPLEMENTATION
+// -----------------------------------------------------------------------
 
 // Needed forward declarations.
 //----------------------------------------------------------------------------------
 typedef struct Particle Particle;
+typedef struct EmitterConfig EmitterConfig;
+typedef struct Emitter Emitter;
+typedef struct ParticleSystem ParticleSystem;
 
+
+// Function signatures (comments are found in implementation below)
+//----------------------------------------------------------------------------------
+float DegreesToRad(float deg);
+float RadToDegrees(float rad);
+float GetRandomFloat(float min, float max);
+Vector2 NormalizeV2(Vector2 v);
+Vector2 RotateV2(Vector2 v, float degrees);
+Color LinearFade(Color c1, Color c2, float fraction);
+
+bool Particle_DeactivatorAge(Particle *p);
+Particle * Particle_New(bool (*deactivatorFunc)(struct Particle *));
+void Particle_Free(Particle *p);
+void Particle_Init(Particle *p, EmitterConfig *cfg);
+void Particle_Update(Particle *p, float dt);
+
+Emitter * Emitter_New(EmitterConfig cfg);
+bool Emitter_Reinit(Emitter *e, EmitterConfig cfg);
+void Emitter_Start(Emitter *e);
+void Emitter_Stop(Emitter *e);
+void Emitter_Free(Emitter *e);
+void Emitter_Burst(Emitter *e);
+unsigned long Emitter_Update(Emitter *e, float dt);
+void Emitter_Draw(Emitter *e);
+
+ParticleSystem * ParticleSystem_New();
+bool ParticleSystem_Register(ParticleSystem *ps, Emitter *emitter);
+bool ParticleSystem_Deregister(ParticleSystem *ps, Emitter *emitter);
+void ParticleSystem_SetOrigin(ParticleSystem *ps, Vector2 origin);
+void ParticleSystem_Start(ParticleSystem *ps);
+void ParticleSystem_Stop(ParticleSystem *ps);
+void ParticleSystem_Burst(ParticleSystem *ps);
+void ParticleSystem_Draw(ParticleSystem *ps);
+size_t ParticleSystem_Update(ParticleSystem *ps, float dt);
+void ParticleSystem_Free(ParticleSystem *p);
+
+
+#ifdef LIBPARTIKEL_IMPLEMENTATION
 
 // Utility functions & structs.
 //----------------------------------------------------------------------------------
@@ -126,7 +183,7 @@ typedef struct IntRange {
 
 // EmitterConfig type.
 //----------------------------------------------------------------------------------
-typedef struct EmitterConfig {    
+struct EmitterConfig {
     Vector2 direction;              // Direction vector will be normalized.
     FloatRange velocity;            // The possible range of the particle velocities.
                                     // Velocity is a scalar defining the length of the direction vector.
@@ -142,11 +199,12 @@ typedef struct EmitterConfig {
     Color startColor;               // The color the particle starts with when it spawns.
     Color endColor;                 // The color the particle ends with when it disappears.
     FloatRange age;                 // Age range of particles in seconds.
-    Texture2D texture;              // The texture used as particle texture.
+    BlendMode blendMode;            // Color blending mode for all particles of this Emitter.
+    Texture2D texture;              // The texture used as particle texture.    
 
     bool (*particle_Deactivator)(struct Particle *); // Pointer to a function that determines when
                                                      // a particle is deactivated.
-} EmitterConfig;
+};
 
 
 // Particle type.
@@ -276,13 +334,13 @@ void Particle_Update(Particle *p, float dt) {
 //----------------------------------------------------------------------------------
 
 // Emitter is a single (point) source emitting many particles.
-typedef struct Emitter {    
+struct Emitter {
     EmitterConfig config;
     float mustEmit;            // Amount of particles to be emitted within next update call.
     Vector2 offset;             // Offset holds half the width and height of the texture.
     bool isEmitting;
     Particle **particles;       // Array of all particles (by pointer).
-} Emitter;
+};
 
 // Emitter_New creates a new Emitter object.
 Emitter * Emitter_New(EmitterConfig cfg) {
@@ -420,8 +478,8 @@ unsigned long Emitter_Update(Emitter *e, float dt) {
 }
 
 // Emitter_Draw draws all active particles.
-void Emitter_Draw(Emitter *e, BlendMode bm) {
-    BeginBlendMode(bm);
+void Emitter_Draw(Emitter *e) {
+    BeginBlendMode(e->config.blendMode);
     for(size_t i = 0; i < e->config.capacity; i++) {
         Particle *p = e->particles[i];
         if(p->active) {
@@ -442,13 +500,13 @@ void Emitter_Draw(Emitter *e, BlendMode bm) {
 // together to achieve a specific visual effect.
 // While Emitters can be used independently, ParticleSystem
 // offers some convenience for handling many Emitters at once.
-typedef struct ParticleSystem {
+struct ParticleSystem {
     bool active;
     size_t length;
     size_t capacity;
     Vector2 origin;
     Emitter **emitters;
-} ParticleSystem;
+};
 
 // Particlesystem_New creates a new particle system
 // with the given amount of emitters.
@@ -543,9 +601,9 @@ void ParticleSystem_Burst(ParticleSystem *ps) {
 }
 
 // ParticleSystem_Draw runs Emitter_Draw on all registered Emitters.
-void ParticleSystem_Draw(ParticleSystem *ps, BlendMode bm) {
+void ParticleSystem_Draw(ParticleSystem *ps) {
     for(size_t i = 0; i < ps->length; i++) {
-        Emitter_Draw(ps->emitters[i], bm);
+        Emitter_Draw(ps->emitters[i]);
     }
 }
 
@@ -564,3 +622,5 @@ void ParticleSystem_Free(ParticleSystem *p) {
     free(p->emitters);
     free(p);
 }
+
+#endif // LIBPARTIKEL_IMPLEMENTATION
