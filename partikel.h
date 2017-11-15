@@ -59,7 +59,7 @@
 // THIS MUST BE COMMENTED OUT
 // You need to uncomment it in some editors to enable syntax highlighting
 // in the following code.
-#define LIBPARTIKEL_IMPLEMENTATION
+//#define LIBPARTIKEL_IMPLEMENTATION
 // -----------------------------------------------------------------------
 
 // Needed forward declarations.
