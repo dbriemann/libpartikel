@@ -1,6 +1,6 @@
 /**********************************************************************************************
 *
-*   libpartikel v0.0.1 ALPHA
+*   libpartikel v0.0.2 ALPHA
 *   [https://github.com/dbriemann/libpartikel]
 *
 *
@@ -45,9 +45,6 @@
 
 #pragma once
 
-#include "stdlib.h"
-#include "stdbool.h"
-#include "math.h"
 #include "raylib.h"
 
 /**  TODOs
@@ -62,7 +59,7 @@
 // THIS MUST BE COMMENTED OUT
 // You need to uncomment it in some editors to enable syntax highlighting
 // in the following code.
-//#define LIBPARTIKEL_IMPLEMENTATION
+#define LIBPARTIKEL_IMPLEMENTATION
 // -----------------------------------------------------------------------
 
 // Needed forward declarations.
@@ -75,8 +72,6 @@ typedef struct ParticleSystem ParticleSystem;
 
 // Function signatures (comments are found in implementation below)
 //----------------------------------------------------------------------------------
-float DegreesToRad(float deg);
-float RadToDegrees(float rad);
 float GetRandomFloat(float min, float max);
 Vector2 NormalizeV2(Vector2 v);
 Vector2 RotateV2(Vector2 v, float degrees);
@@ -105,22 +100,17 @@ void ParticleSystem_Start(ParticleSystem *ps);
 void ParticleSystem_Stop(ParticleSystem *ps);
 void ParticleSystem_Burst(ParticleSystem *ps);
 void ParticleSystem_Draw(ParticleSystem *ps);
-size_t ParticleSystem_Update(ParticleSystem *ps, float dt);
+unsigned long ParticleSystem_Update(ParticleSystem *ps, float dt);
 void ParticleSystem_Free(ParticleSystem *p);
 
 
 #ifdef LIBPARTIKEL_IMPLEMENTATION
 
+#include "stdlib.h"
+#include "math.h"
+
 // Utility functions & structs.
 //----------------------------------------------------------------------------------
-
-float DegreesToRad(float deg) {
-    return deg * PI / 180;
-}
-
-float RadToDegrees(float rad) {
-    return rad * 180 / PI;
-}
 
 // GetRandomFloat returns a random float between 0.0 and 1.0.
 float GetRandomFloat(float min, float max) {
@@ -139,7 +129,7 @@ Vector2 NormalizeV2(Vector2 v) {
 }
 
 Vector2 RotateV2(Vector2 v, float degrees) {
-    float rad = DegreesToRad(degrees);
+    float rad = degrees * DEG2RAD;
     Vector2 res = {
        .x = cos(rad) * v.x - sin(rad) * v.y,
        .y = sin(rad) * v.x + cos(rad) * v.y
@@ -605,7 +595,7 @@ void ParticleSystem_Draw(ParticleSystem *ps) {
 }
 
 // ParticleSystem_Update runs Emitter_Update on all registered Emitters.
-size_t ParticleSystem_Update(ParticleSystem *ps, float dt) {
+unsigned long ParticleSystem_Update(ParticleSystem *ps, float dt) {
     size_t counter = 0;
     for(size_t i = 0; i < ps->length; i++) {
         counter += Emitter_Update(ps->emitters[i], dt);
