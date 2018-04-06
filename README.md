@@ -26,7 +26,7 @@ Just have raylib installed on your system and copy partikel.h to your project an
 Note: the cmake is currently only configured for Linux. If you can help with Mac or Windows just submit a pull request.
 
 #### Linux
-1. `git clone git@github.com:dbriemann/libpartikel.git`
+1. `git clone https://github.com/dbriemann/libpartikel.git`
 2. `cd libpartikel && mkdir build && cd build`
 3. `cmake .. -G"Unix Makefiles" -DCMAKE_BUILD_TYPE=Release`
 4. `make`

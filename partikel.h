@@ -92,7 +92,7 @@ void Emitter_Burst(Emitter *e);
 unsigned long Emitter_Update(Emitter *e, float dt);
 void Emitter_Draw(Emitter *e);
 
-ParticleSystem * ParticleSystem_New();
+ParticleSystem * ParticleSystem_New(void);
 bool ParticleSystem_Register(ParticleSystem *ps, Emitter *emitter);
 bool ParticleSystem_Deregister(ParticleSystem *ps, Emitter *emitter);
 void ParticleSystem_SetOrigin(ParticleSystem *ps, Vector2 origin);
@@ -497,7 +497,7 @@ struct ParticleSystem {
 
 // Particlesystem_New creates a new particle system
 // with the given amount of emitters.
-ParticleSystem * ParticleSystem_New() {
+ParticleSystem * ParticleSystem_New(void) {
     ParticleSystem *ps = calloc(1, sizeof(ParticleSystem));
     if(ps == NULL) {
         return NULL;
