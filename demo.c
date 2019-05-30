@@ -21,31 +21,31 @@
 
 // Global data.
 //----------------------------------------------------------------------------------
-int screenWidth = 1000;
-int screenHeight = 800;
-unsigned long counter = 0;
-Camera2D camera;
+static int screenWidth = 1000;
+static int screenHeight = 800;
+static unsigned long counter = 0;
+static Camera2D camera;
 
-Texture2D texCircle16;
-Texture2D texCircle8;
-Texture2D texCircle4;
+static Texture2D texCircle16;
+static Texture2D texCircle8;
+static Texture2D texCircle4;
 
-int activePS = 1;
+static int activePS = 1;
 
-ParticleSystem *ps1 = NULL;
-Emitter *emitterFountain1 = NULL;
-Emitter *emitterFountain2 = NULL;
-Emitter *emitterFountain3 = NULL;
+static ParticleSystem *ps1 = NULL;
+static Emitter *emitterFountain1 = NULL;
+static Emitter *emitterFountain2 = NULL;
+static Emitter *emitterFountain3 = NULL;
 
-ParticleSystem *ps2 = NULL;
-Emitter *emitterSwirl1 = NULL;
-Emitter *emitterSwirl2 = NULL;
-Emitter *emitterSwirl3 = NULL;
+static ParticleSystem *ps2 = NULL;
+static Emitter *emitterSwirl1 = NULL;
+static Emitter *emitterSwirl2 = NULL;
+static Emitter *emitterSwirl3 = NULL;
 
-ParticleSystem *ps3 = NULL;
-Emitter *emitterFlame1 = NULL;
-Emitter *emitterFlame2 = NULL;
-Emitter *emitterFlame3 = NULL;
+static ParticleSystem *ps3 = NULL;
+static Emitter *emitterFlame1 = NULL;
+static Emitter *emitterFlame2 = NULL;
+static Emitter *emitterFlame3 = NULL;
 
 
 // Define a custom particle deactivator function.
@@ -96,8 +96,8 @@ void InitFountain() {
     }
     ParticleSystem_Register(ps1, emitterFountain1);
 
-    ecfg1.directionAngle = (FloatRange){.min = -1.5, .max = 1.5},
-    ecfg1.velocity = (FloatRange){.min = 800, .max = 850},
+    ecfg1.directionAngle = (FloatRange){.min = -1.5, .max = 1.5};
+    ecfg1.velocity = (FloatRange){.min = 800, .max = 850};
     ecfg1.texture = texCircle8;
     emitterFountain2 = Emitter_New(ecfg1);
     if(emitterFountain2 == NULL) {
@@ -107,8 +107,8 @@ void InitFountain() {
 
     ecfg1.capacity = 3000;
     ecfg1.emissionRate = 1000;
-    ecfg1.directionAngle = (FloatRange){.min = -20, .max = 20},
-    ecfg1.velocity = (FloatRange){.min = 500, .max = 550},
+    ecfg1.directionAngle = (FloatRange){.min = -20, .max = 20};
+    ecfg1.velocity = (FloatRange){.min = 500, .max = 550};
     ecfg1.texture = texCircle16;
     ecfg1.age = (FloatRange){.min = 0.0, .max = 3.0};
     emitterFountain3 = Emitter_New(ecfg1);
@@ -153,7 +153,7 @@ void InitSwirl() {
 
     ecfg.capacity = 1000;
     ecfg.emissionRate = 200;
-    ecfg.offset = (FloatRange){.min = 40, .max = 50},
+    ecfg.offset = (FloatRange){.min = 40, .max = 50};
     ecfg.startColor = (Color){.r = 244, .g = 0, .b = 111, .a = 255};
     ecfg.endColor = (Color){.r = 244, .g = 0, .b = 111, .a = 0};
 
@@ -165,7 +165,7 @@ void InitSwirl() {
 
     ecfg.capacity = 150;
     ecfg.emissionRate = 30;
-    ecfg.offset = (FloatRange){.min = 20, .max = 30},
+    ecfg.offset = (FloatRange){.min = 20, .max = 30};
     ecfg.velocity = (FloatRange){.min = 100, .max = 200};
     ecfg.startColor = (Color){.r = 255, .g = 211, .b = 0, .a = 255};
     ecfg.endColor = (Color){.r = 255, .g = 211, .b = 0, .a = 0};
@@ -278,11 +278,11 @@ void Init() {
     camera.zoom = 1.0f;
 
     // Generate some simple textures.
-    Image imgCircle16 = GenImageGradientRadial(16, 16, 0.3, WHITE, BLACK);
+    Image imgCircle16 = GenImageGradientRadial(16, 16, 0.3f, WHITE, BLACK);
     texCircle16 = LoadTextureFromImage(imgCircle16);
-    Image imgCircle8 = GenImageGradientRadial(8, 8, 0.5, WHITE, BLACK);
+    Image imgCircle8 = GenImageGradientRadial(8, 8, 0.5f, WHITE, BLACK);
     texCircle8 = LoadTextureFromImage(imgCircle8);
-    Image imgCircle4 = GenImageGradientRadial(4, 4, 0.5, WHITE, BLACK);
+    Image imgCircle4 = GenImageGradientRadial(4, 4, 0.5f, WHITE, BLACK);
     texCircle4 = LoadTextureFromImage(imgCircle4);
 
     UnloadImage(imgCircle4);
@@ -337,15 +337,15 @@ void Update(double dt) {
     switch (activePS) {
     case 1:
         ParticleSystem_SetOrigin(ps1, (Vector2){.x = m.x, .y = m.y});
-        counter += ParticleSystem_Update(ps1, dt);
+        counter += ParticleSystem_Update(ps1, (float)dt);
         break;
     case 2:
         ParticleSystem_SetOrigin(ps2, (Vector2){.x = m.x, .y = m.y});
-        counter += ParticleSystem_Update(ps2, dt);
+        counter += ParticleSystem_Update(ps2, (float)dt);
         break;        
     case 3:
         ParticleSystem_SetOrigin(ps3, (Vector2){.x = m.x, .y = m.y});
-        counter += ParticleSystem_Update(ps3, dt);
+        counter += ParticleSystem_Update(ps3, (float)dt);
         break;
     default:
         break;
@@ -359,7 +359,7 @@ void Draw() {
 
     ClearBackground(BLACK);
 
-    Begin2dMode(camera);
+    BeginMode2D(camera);
 
     // Draw scene here.
     switch (activePS) {
@@ -376,7 +376,7 @@ void Draw() {
         break;
     }
 
-    End2dMode();
+    EndMode2D();
 
     // Draw HUD etc. here.
     DrawFPS(10, 10);
@@ -393,6 +393,8 @@ void Draw() {
 
 int main(int argc, char * argv[argc + 1]) {
 
+    (void)argv[0];
+
     // Initialization
     //----------------------------------------------------------------------------------
     Init();
@@ -401,7 +403,7 @@ int main(int argc, char * argv[argc + 1]) {
     //----------------------------------------------------------------------------------
     while (!WindowShouldClose())    // Detect window close button or ESC key
     {
-        double dt = GetFrameTime();
+        double dt = (double)GetFrameTime();
         Update(dt);
 
         Draw();
