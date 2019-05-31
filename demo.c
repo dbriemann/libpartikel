@@ -9,7 +9,7 @@
 *   raylib is licensed under an unmodified zlib/libpng license (View raylib.h for details)
 *   libpartikel is licensed under an unmodified zlib/libpng license (View partikel.h for details)
 *
-*   Copyright (c) 2O17 David Linus Briemann (@Raging_Dave)
+*   Copyright (c) 2O19 David Linus Briemann (@Raging_Dave)
 *
 ********************************************************************************************/
 
@@ -46,7 +46,6 @@ static ParticleSystem *ps3 = NULL;
 static Emitter *emitterFlame1 = NULL;
 static Emitter *emitterFlame2 = NULL;
 static Emitter *emitterFlame3 = NULL;
-
 
 // Define a custom particle deactivator function.
 bool Particle_DeactivatorFountain(Particle *p) {

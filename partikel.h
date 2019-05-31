@@ -1,6 +1,6 @@
 /**********************************************************************************************
 *
-*   libpartikel v0.0.2 ALPHA
+*   libpartikel v0.0.3 ALPHA
 *   [https://github.com/dbriemann/libpartikel]
 *
 *
@@ -11,7 +11,7 @@
 *       - Supports all platforms that raylib supports
 *
 *   DEPENDENCIES:
-*       raylib >= v1.8.0 and all of its dependencies
+*       raylib >= v2.5.0 and all of its dependencies
 *
 *   CONFIGURATION:
 *   #define LIBPARTIKEL_IMPLEMENTATION
@@ -59,7 +59,7 @@
 // THIS MUST BE COMMENTED OUT
 // You need to uncomment it in some editors to enable syntax highlighting
 // in the following code.
-//#define LIBPARTIKEL_IMPLEMENTATION
+#define LIBPARTIKEL_IMPLEMENTATION
 // -----------------------------------------------------------------------
 
 // Needed forward declarations.
